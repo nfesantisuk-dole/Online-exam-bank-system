@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ระบบคลังข้อสอบออนไลน์ - สกร.ระดับอำเภอดอยหล่อ</title>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom Styles -->
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; color: #334155; }
+        .sarabun { font-family: 'Sarabun', sans-serif; }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .modal-enter { animation: modalSlideIn 0.3s ease-out forwards; }
+        @keyframes modalSlideIn { 
+            from { opacity: 0; transform: scale(0.95); } 
+            to { opacity: 1; transform: scale(1); } 
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Print Styles */
+        @media print {
+            body { background: white; -webkit-print-color-adjust: exact; }
+            nav, footer, .no-print { display: none !important; }
+            #appContent { padding: 0; }
+            .glass-card { box-shadow: none; border: 1px solid #ddd; }
+            .print-break { page-break-before: always; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-indigo-600 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo Area -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="app.render('landing')">
+                    <div class="bg-white p-1.5 rounded-full shadow-md">
+                        <i data-lucide="book-open" class="w-6 h-6 text-indigo-600"></i>
+                    </div>
+                    <div>
+                        <span class="font-bold text-lg md:text-xl tracking-wide block leading-tight">สกร.ระดับอำเภอดอยหล่อ</span>
+                        <span class="text-xs text-indigo-200 block font-light">ระบบคลังข้อสอบออนไลน์</span>
+                    </div>
+                </div>
+                
+                <!-- Right Action Bar -->
+                <div class="flex items-center">
+                    <button id="navLoginBtn" onclick="ui.toggleLoginModal(true)" class="bg-white text-indigo-600 hover:bg-indigo-50 px-4 py-2 rounded-full font-bold text-sm shadow-md transition flex items-center gap-2">
+                        <i data-lucide="log-in" class="w-4 h-4"></i>
+                        <span>เข้าสู่ระบบ</span>
+                    </button>
+
+                    <div id="navUser" class="hidden flex items-center space-x-3 bg-indigo-700/50 rounded-full pl-4 pr-1 py-1">
+                        <span id="navUserName" class="text-sm font-medium"></span>
+                        <button onclick="app.logout()" class="p-1.5 bg-white text-indigo-600 rounded-full hover:bg-red-50 hover:text-red-600 transition" title="ออกจากระบบ">
+                            <i data-lucide="power" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="appContent" class="flex-grow p-4 md:p-6 max-w-7xl mx-auto w-full">
+        <!-- Views will be injected here -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-auto py-6">
+        <div class="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
+            &copy; 2569 สกร.ระดับอำเภอดอยหล่อ จังหวัดเชียงใหม่. สงวนลิขสิทธิ์.
+        </div>
+    </footer>
+
+    <!-- LOADING OVERLAY -->
+    <div id="loader" class="fixed inset-0 bg-white/80 z-[60] flex flex-col items-center justify-center hidden backdrop-blur-sm">
+        <div class="loading-spinner mb-4"></div>
+        <p class="text-indigo-600 font-medium animate-pulse">กำลังประมวลผล...</p>
+    </div>
+
+    <!-- LOGIN MODAL -->
+    <div id="loginModal" class="fixed inset-0 z-[60] hidden">
+        <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onclick="ui.toggleLoginModal(false)"></div>
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl z-10 modal-enter overflow-hidden relative">
+                <button onclick="ui.toggleLoginModal(false)" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+                <div class="p-8">
+                    <div class="text-center mb-6">
+                        <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i data-lucide="key-round" class="w-8 h-8 text-indigo-600"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-800">ยินดีต้อนรับ</h2>
+                        <p class="text-slate-500 text-sm">กรุณาเลือกสถานะเพื่อเข้าสู่ระบบ</p>
+                    </div>
+
+                    <div class="flex p-1 bg-slate-100 rounded-lg mb-6">
+                        <button id="tabStudent" onclick="ui.switchLoginTab('student')" class="flex-1 py-2.5 rounded-md bg-white shadow-sm text-indigo-600 font-bold text-sm transition">นักศึกษา</button>
+                        <button id="tabAdmin" onclick="ui.switchLoginTab('admin')" class="flex-1 py-2.5 rounded-md text-slate-500 font-bold text-sm transition hover:text-indigo-600">เจ้าหน้าที่</button>
+                    </div>
+
+                    <form id="formStudent" onsubmit="app.login(event, 'student')" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">รหัสนักศึกษา</label>
+                            <div class="relative">
+                                <i data-lucide="user" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
+                                <input type="text" name="id" required class="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="ระบุรหัสประจำตัว">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">รหัสผ่าน</label>
+                            <div class="relative">
+                                <i data-lucide="lock" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
+                                <input type="password" name="password" required class="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="ระบุรหัสผ่าน">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 mt-2">
+                            เข้าสู่ระบบนักศึกษา
+                        </button>
+                        <p class="text-xs text-center text-slate-400 mt-4">ทดสอบ: รหัส 660001 (ม.ต้น), 660002 (ม.ปลาย), 660003 (ประถม) / รหัสผ่าน 1234</p>
+                    </form>
+
+                    <form id="formAdmin" onsubmit="app.login(event, 'admin')" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">ชื่อผู้ใช้ (Admin)</label>
+                            <div class="relative">
+                                <i data-lucide="shield" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
+                                <input type="text" name="id" value="admin" readonly class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-lg text-slate-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">รหัสผ่าน</label>
+                            <div class="relative">
+                                <i data-lucide="key" class="absolute left-3 top-3 w-5 h-5 text-slate-400"></i>
+                                <input type="password" name="password" required class="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition" placeholder="รหัสผ่านเจ้าหน้าที่">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 mt-2">
+                            เข้าสู่ระบบเจ้าหน้าที่
+                        </button>
+                        <p class="text-xs text-center text-slate-400 mt-4">ทดสอบ: รหัสผ่าน admin</p>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEMPLATES -->
+    
+    <!-- LANDING PAGE -->
+    <template id="tpl-landing">
+        <div class="fade-in space-y-8 py-4">
+            <div class="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-2xl p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 opacity-10 transform translate-x-10 -translate-y-10">
+                    <i data-lucide="book-open" class="w-64 h-64"></i>
+                </div>
+                <div class="relative z-10 max-w-2xl">
+                    <h1 class="text-3xl md:text-5xl font-bold mb-4 leading-tight">ระบบคลังข้อสอบออนไลน์</h1>
+                    <p class="text-indigo-100 text-lg md:text-xl mb-8 font-light">
+                        ศูนย์ส่งเสริมการเรียนรู้ระดับอำเภอดอยหล่อ จังหวัดเชียงใหม่<br>
+                        แพลตฟอร์มการเรียนรู้และทดสอบความรู้ออนไลน์ที่ทันสมัย เข้าถึงง่าย ได้ทุกที่
+                    </p>
+                    <button onclick="ui.toggleLoginModal(true)" class="bg-white text-indigo-600 font-bold py-3 px-8 rounded-full shadow-lg hover:bg-indigo-50 transition transform hover:-translate-y-1 flex items-center gap-2 w-fit">
+                        <i data-lucide="log-in" class="w-5 h-5"></i> เริ่มต้นใช้งาน
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-card p-6 rounded-xl border-t-4 border-indigo-500 hover:shadow-lg transition">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-indigo-100 rounded-lg text-indigo-600">
+                            <i data-lucide="library" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-sm font-medium">ชุดข้อสอบทั้งหมด</p>
+                            <h3 class="text-3xl font-bold text-slate-800" id="pubStatExam">...</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card p-6 rounded-xl border-t-4 border-emerald-500 hover:shadow-lg transition">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-emerald-100 rounded-lg text-emerald-600">
+                            <i data-lucide="users" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-sm font-medium">นักศึกษาในระบบ</p>
+                            <h3 class="text-3xl font-bold text-slate-800" id="pubStatStudent">...</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card p-6 rounded-xl border-t-4 border-amber-500 hover:shadow-lg transition">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-amber-100 rounded-lg text-amber-600">
+                            <i data-lucide="award" class="w-8 h-8"></i>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-sm font-medium">การเข้าทดสอบ</p>
+                            <h3 class="text-3xl font-bold text-slate-800" id="pubStatResult">...</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="info" class="w-5 h-5 text-indigo-500"></i> คำชี้แจงสำหรับนักศึกษา
+                    </h3>
+                    <ul class="space-y-2 text-slate-600 text-sm">
+                        <li class="flex items-start gap-2"><span class="text-indigo-500">•</span> ให้ใช้รหัสนักศึกษาและรหัสผ่านที่ได้รับจากเจ้าหน้าที่</li>
+                        <li class="flex items-start gap-2"><span class="text-indigo-500">•</span> สามารถเลือกทำข้อสอบตามรายวิชาที่เปิดให้สอบ</li>
+                        <li class="flex items-start gap-2"><span class="text-indigo-500">•</span> เมื่อส่งคำตอบแล้ว ระบบจะประมวลผลคะแนนทันที</li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+                        <i data-lucide="help-circle" class="w-5 h-5 text-indigo-500"></i> ติดต่อสอบถาม
+                    </h3>
+                    <p class="text-slate-600 text-sm mb-4">หากพบปัญหาในการใช้งาน หรือลืมรหัสผ่าน กรุณาติดต่อเจ้าหน้าที่งานทะเบียน หรือครูที่ปรึกษา</p>
+                    <div class="flex items-center gap-2 text-sm text-indigo-600 font-medium cursor-pointer hover:underline">
+                        <i data-lucide="phone" class="w-4 h-4"></i> สกร.ระดับอำเภอดอยหล่อ
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- ADMIN DASHBOARD -->
+    <template id="tpl-admin-dashboard">
+        <div class="fade-in space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">ระบบจัดการหลังบ้าน</h1>
+                    <p class="text-slate-500 text-sm">ยินดีต้อนรับผู้ดูแลระบบ</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="app.renderAdminExamList()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 text-sm font-medium flex items-center gap-2"><i data-lucide="file-text" class="w-4 h-4"></i> จัดการข้อสอบ</button>
+                    <button onclick="app.renderStudentManagement()" class="px-4 py-2 bg-white text-slate-700 border border-slate-300 rounded-lg shadow hover:bg-slate-50 text-sm font-medium flex items-center gap-2"><i data-lucide="users" class="w-4 h-4"></i> จัดการนักศึกษา</button>
+                    <button onclick="app.renderReports()" class="px-4 py-2 bg-amber-500 text-white rounded-lg shadow hover:bg-amber-600 text-sm font-medium flex items-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> ระบบรายงาน</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass-card p-6 rounded-xl border-l-4 border-indigo-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">ข้อสอบทั้งหมด</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="statExamCount">0</h3>
+                        </div>
+                        <div class="p-2 bg-indigo-50 rounded-lg"><i data-lucide="book" class="w-6 h-6 text-indigo-500"></i></div>
+                    </div>
+                </div>
+                <div class="glass-card p-6 rounded-xl border-l-4 border-emerald-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">นักศึกษา</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="statStudentCount">0</h3>
+                        </div>
+                        <div class="p-2 bg-emerald-50 rounded-lg"><i data-lucide="users" class="w-6 h-6 text-emerald-500"></i></div>
+                    </div>
+                </div>
+                <div class="glass-card p-6 rounded-xl border-l-4 border-amber-500">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">การเข้าสอบ</p>
+                            <h3 class="text-3xl font-bold text-slate-800 mt-1" id="statResultCount">0</h3>
+                        </div>
+                        <div class="p-2 bg-amber-50 rounded-lg"><i data-lucide="clipboard-check" class="w-6 h-6 text-amber-500"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Area -->
+            <div id="adminContentArea" class="glass-card rounded-xl p-6 min-h-[400px]"></div>
+        </div>
+    </template>
+
+    <!-- ADMIN REPORTS (NEW) -->
+    <template id="tpl-admin-reports">
+        <div class="fade-in bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+            <div class="flex justify-between items-center mb-8 no-print">
+                <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                    <i data-lucide="file-bar-chart-2" class="w-6 h-6 text-amber-500"></i>
+                    ระบบรายงานสารสนเทศ
+                </h2>
+                <div class="flex gap-2">
+                    <button onclick="window.print()" class="px-4 py-2 bg-slate-800 text-white rounded-lg shadow hover:bg-slate-900 flex items-center gap-2">
+                        <i data-lucide="printer" class="w-4 h-4"></i> พิมพ์รายงาน
+                    </button>
+                    <button onclick="app.renderAdminDashboard()" class="px-4 py-2 border border-slate-300 text-slate-600 rounded-lg hover:bg-slate-50">
+                        ย้อนกลับ
+                    </button>
+                </div>
+            </div>
+
+            <!-- Report Header (Printable) -->
+            <div class="text-center mb-10 border-b pb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
+                    <i data-lucide="book-open" class="w-8 h-8 text-slate-600"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-slate-900">รายงานสรุปผลการดำเนินงาน</h1>
+                <p class="text-lg text-slate-600">ระบบคลังข้อสอบออนไลน์ สกร.ระดับอำเภอดอยหล่อ จังหวัดเชียงใหม่</p>
+                <p class="text-sm text-slate-400 mt-2" id="reportDate">ข้อมูล ณ วันที่: </p>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="mb-10">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 border-l-4 border-indigo-500 pl-3">1. สรุปภาพรวม (Overview)</h3>
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="p-4 border rounded-lg bg-slate-50">
+                        <p class="text-sm text-slate-500">จำนวนนักศึกษาทั้งหมด</p>
+                        <p class="text-2xl font-bold text-indigo-600" id="repStdCount">0</p>
+                    </div>
+                    <div class="p-4 border rounded-lg bg-slate-50">
+                        <p class="text-sm text-slate-500">จำนวนชุดข้อสอบ</p>
+                        <p class="text-2xl font-bold text-emerald-600" id="repExamCount">0</p>
+                    </div>
+                    <div class="p-4 border rounded-lg bg-slate-50">
+                        <p class="text-sm text-slate-500">จำนวนการเข้าสอบ (ครั้ง)</p>
+                        <p class="text-2xl font-bold text-amber-600" id="repResCount">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student List -->
+            <div class="mb-10 page-break">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 border-l-4 border-emerald-500 pl-3">2. ทำเนียบนักศึกษา (Student Directory)</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left border-collapse border border-slate-200">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="border p-2">รหัส</th>
+                                <th class="border p-2">ชื่อ-สกุล</th>
+                                <th class="border p-2">ตำบล</th>
+                                <th class="border p-2">ระดับชั้น</th>
+                            </tr>
+                        </thead>
+                        <tbody id="repStdTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Exam Results -->
+            <div class="mb-10 page-break">
+                <h3 class="text-lg font-bold text-slate-800 mb-4 border-l-4 border-amber-500 pl-3">3. รายงานผลการสอบล่าสุด (Exam Results)</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left border-collapse border border-slate-200">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="border p-2">วัน-เวลา</th>
+                                <th class="border p-2">ผู้สอบ</th>
+                                <th class="border p-2">ศกร.ระดับตำบล</th>
+                                <th class="border p-2">วิชา</th>
+                                <th class="border p-2 text-center">คะแนน</th>
+                                <th class="border p-2 text-center">ผลลัพธ์</th>
+                            </tr>
+                        </thead>
+                        <tbody id="repResTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="text-center text-xs text-slate-400 mt-10 pt-4 border-t">
+                ระบบสารสนเทศเพื่อการเรียนรู้ สกร.อำเภอดอยหล่อ (Generated by System)
+            </div>
+        </div>
+    </template>
+
+    <!-- EXAM EDITOR -->
+    <template id="tpl-exam-editor">
+        <div class="fade-in">
+            <!-- ปุ่มย้อนกลับ -->
+            <div class="flex items-center gap-2 mb-6 cursor-pointer text-slate-500 hover:text-indigo-600 transition" onclick="app.renderAdminExamList()">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                <span class="font-medium">กลับไปหน้ารายการข้อสอบ</span>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                <div class="bg-indigo-600 px-6 py-4 border-b border-indigo-700 flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i data-lucide="edit-3" class="w-5 h-5"></i>
+                        <span id="editorTitle">สร้างชุดข้อสอบใหม่</span>
+                    </h2>
+                    <div class="flex items-center gap-2">
+                         <label class="flex items-center space-x-2 cursor-pointer bg-indigo-800 px-3 py-1 rounded-full border border-indigo-500">
+                            <input type="checkbox" id="examActive" class="w-4 h-4 rounded text-indigo-400 focus:ring-0">
+                            <span class="text-sm text-white font-medium">เปิดใช้งาน</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="p-6 md:p-8 space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="col-span-1">
+                            <label class="block text-sm font-bold text-slate-700 mb-1">รหัสวิชา</label>
+                            <input type="text" id="examCode" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="เช่น ท21101">
+                        </div>
+                        <div class="col-span-1">
+                             <label class="block text-sm font-bold text-slate-700 mb-1">ระดับชั้น</label>
+                             <select id="examLevel" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+                                 <option value="ประถมศึกษา">ประถมศึกษา</option>
+                                 <option value="มัธยมศึกษาตอนต้น">มัธยมศึกษาตอนต้น</option>
+                                 <option value="มัธยมศึกษาตอนปลาย">มัธยมศึกษาตอนปลาย</option>
+                             </select>
+                        </div>
+                        <div class="col-span-1 md:col-span-2">
+                            <label class="block text-sm font-bold text-slate-700 mb-1">ชื่อรายวิชา</label>
+                            <input type="text" id="examTitle" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-medium" placeholder="เช่น ภาษาไทยพื้นฐาน">
+                        </div>
+                        <div class="col-span-1 md:col-span-2">
+                            <label class="block text-sm font-bold text-slate-700 mb-1">รายละเอียด / คำชี้แจง</label>
+                            <textarea id="examDesc" rows="2" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="คำอธิบายเพิ่มเติม..."></textarea>
+                        </div>
+                         <div class="col-span-1">
+                            <label class="block text-sm font-bold text-slate-700 mb-1">เวลาในการทำสอบ (นาที)</label>
+                            <input type="number" id="examTime" value="60" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                    </div>
+                    <hr class="border-slate-200">
+                    <div>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-slate-800">รายการคำถาม <span id="qCountBadge" class="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full ml-2">0 ข้อ</span></h3>
+                            <button onclick="editor.addQuestion()" class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 font-medium text-sm flex items-center gap-2 border border-indigo-200">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> เพิ่มข้อสอบ
+                            </button>
+                        </div>
+                        <div id="questionsContainer" class="space-y-6"></div>
+                    </div>
+                    <div class="flex justify-end pt-4 border-t border-slate-200 gap-3">
+                         <button onclick="app.renderAdminExamList()" class="px-6 py-2.5 rounded-lg border border-slate-300 text-slate-600 font-medium hover:bg-slate-50 transition">ยกเลิก</button>
+                         <button onclick="editor.save()" class="px-6 py-2.5 rounded-lg bg-indigo-600 text-white font-bold shadow-lg hover:bg-indigo-700 hover:shadow-xl transition flex items-center gap-2">
+                            <i data-lucide="save" class="w-4 h-4"></i> บันทึกข้อมูล
+                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- STUDENT DASHBOARD -->
+    <template id="tpl-student-dashboard">
+        <div class="fade-in space-y-6">
+            <div class="glass-card rounded-xl p-6 bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg">
+                <div class="flex flex-col md:flex-row items-center gap-6">
+                    <div class="bg-white/20 p-4 rounded-full backdrop-blur-sm">
+                        <i data-lucide="user" class="w-10 h-10 text-white"></i>
+                    </div>
+                    <div class="text-center md:text-left flex-grow">
+                        <h2 class="text-2xl font-bold" id="stdName">ชื่อ-สกุล</h2>
+                        <p class="text-indigo-100 opacity-90 text-sm mt-1">รหัส: <span id="stdId"></span> | สังกัด: <span id="stdGroup"></span></p>
+                    </div>
+                    <div class="text-center bg-white/10 p-4 rounded-lg backdrop-blur-sm">
+                        <p class="text-xs text-indigo-100 uppercase tracking-wider">สอบผ่านแล้ว</p>
+                        <p class="text-2xl font-bold" id="stdPassedCount">0</p>
+                    </div>
+                </div>
+            </div>
+             <div class="flex space-x-1 bg-slate-200/50 p-1 rounded-xl w-fit mx-auto md:mx-0">
+                <button onclick="app.switchStudentTab('exams')" id="btnTabExams" class="px-6 py-2 rounded-lg text-sm font-bold transition shadow-sm bg-white text-indigo-600">ชุดข้อสอบ</button>
+                <button onclick="app.switchStudentTab('history')" id="btnTabHistory" class="px-6 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-indigo-600 transition">ประวัติการสอบ</button>
+            </div>
+            <div id="studentViewExams" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            <div id="studentViewHistory" class="hidden">
+                 <div class="glass-card rounded-xl overflow-hidden">
+                    <table class="w-full text-sm text-left text-slate-600">
+                        <thead class="bg-slate-50 text-slate-700 font-bold uppercase text-xs">
+                            <tr>
+                                <th class="px-6 py-3">วันที่</th>
+                                <th class="px-6 py-3">วิชา</th>
+                                <th class="px-6 py-3 text-center">คะแนน</th>
+                                <th class="px-6 py-3 text-center">ผลลัพธ์</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                 </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- EXAM ROOM -->
+    <template id="tpl-exam-room">
+        <div class="fade-in max-w-4xl mx-auto">
+             <div class="glass-card rounded-xl p-4 mb-6 flex justify-between items-center sticky top-20 z-40 border-l-4 border-indigo-500 shadow-xl">
+                 <div>
+                     <h3 class="font-bold text-slate-800 text-lg" id="roomExamTitle">ชื่อวิชา</h3>
+                     <p class="text-xs text-slate-500">รหัส: <span id="roomExamCode"></span></p>
+                 </div>
+                 <div class="flex items-center gap-3">
+                     <div class="text-right">
+                         <p class="text-xs text-slate-500">เวลาที่เหลือ</p>
+                         <p class="font-mono text-xl font-bold text-red-600" id="timerDisplay">00:00</p>
+                     </div>
+                 </div>
+             </div>
+             <div id="examQuestionsArea" class="space-y-8 pb-20"></div>
+             <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-lg z-50">
+                 <div class="max-w-4xl mx-auto flex justify-between items-center">
+                     <span class="text-sm text-slate-500 hidden md:inline">ตรวจสอบคำตอบให้ครบถ้วนก่อนส่ง</span>
+                     <button onclick="examRoom.submit()" class="w-full md:w-auto bg-indigo-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg hover:bg-indigo-700 transition transform hover:-translate-y-1">ส่งคำตอบ</button>
+                 </div>
+             </div>
+        </div>
+    </template>
+
+    <!-- JS LOGIC -->
+    <script>
+        // --- MOCK DATA (สำหรับทดสอบในหน้า Preview) ---
+        let mockData = {
+            exams: [
+                {id: '1', coursecode: 'ท21101', title: 'ภาษาไทย ม.ต้น', level: 'มัธยมศึกษาตอนต้น', description: 'แบบทดสอบกลางภาคเรียนที่ 1', timelimit: 30, active: true, questionsjson: JSON.stringify([
+                    {text: "ข้อใดเป็นคำนาม?", options: ["กิน", "นอน", "แมว", "เร็ว"], correct: 2},
+                    {text: "ข้อใดเป็นคำกริยา?", options: ["วิ่ง", "สวย", "บ้าน", "เขา"], correct: 0}
+                ])},
+                {id: '2', coursecode: 'ท31101', title: 'ภาษาไทย ม.ปลาย', level: 'มัธยมศึกษาตอนปลาย', description: 'แบบทดสอบปลายภาค', timelimit: 45, active: true, questionsjson: JSON.stringify([
+                    {text: "สุนทรภู่เป็นกวีในสมัยใด?", options: ["อยุธยา", "ธนบุรี", "รัตนโกสินทร์", "สุโขทัย"], correct: 2}
+                ])}
+            ],
+            students: [
+                {id: '660001', prefix: 'นาย', name: 'สมชาย รักเรียน', group: 'ดอยหล่อ', level: 'มัธยมศึกษาตอนต้น', password: '1234'},
+                {id: '660002', prefix: 'น.ส.', name: 'สมหญิง จริงใจ', group: 'สองแคว', level: 'มัธยมศึกษาตอนปลาย', password: '1234'},
+                {id: '660003', prefix: 'ด.ช.', name: 'มานะ ขยัน', group: 'สันติสุข', level: 'ประถมศึกษา', password: '1234'}
+            ],
+            results: []
+        };
+
+        const api = {
+            call: (action, params = {}) => {
+                document.getElementById('loader').classList.remove('hidden');
+                return new Promise((resolve, reject) => {
+                    // CHECK: Running in Preview (No Google API)
+                    if (typeof google === 'undefined') {
+                        console.log(`[MOCK API] Call: ${action}`, params);
+                        setTimeout(() => {
+                            document.getElementById('loader').classList.add('hidden');
+                            try {
+                                const res = mockBackend(action, params);
+                                if(res.status === 'error') throw new Error(res.message);
+                                resolve(res);
+                            } catch(e) { reject(e); }
+                        }, 500); // Simulate network delay
+                        return;
+                    }
+
+                    // REAL: Google Apps Script (UPDATED to call 'processApi')
+                    google.script.run
+                        .withSuccessHandler(res => {
+                            document.getElementById('loader').classList.add('hidden');
+                            try {
+                                if (!res) throw new Error("No response from server");
+                                const json = JSON.parse(res);
+                                if (json.status === 'error') throw new Error(json.message);
+                                resolve(json);
+                            } catch(e) { reject(e); }
+                        })
+                        .withFailureHandler(err => {
+                            document.getElementById('loader').classList.add('hidden');
+                            reject(err);
+                        })
+                        .processApi({ action: action, ...params });
+                });
+            }
+        };
+
+        // --- MOCK BACKEND LOGIC ---
+        function mockBackend(action, params) {
+            let result = {};
+            switch (action) {
+                case 'getPublicData':
+                    result = {
+                        status: 'success',
+                        stats: {
+                            exams: mockData.exams.filter(e => e.active).length,
+                            students: mockData.students.length,
+                            results: mockData.results.length
+                        }
+                    };
+                    break;
+                case 'login':
+                    if (params.role === 'admin' && params.password === 'admin') {
+                        result = { status: 'success', user: { name: 'Admin', role: 'admin' } };
+                    } else if (params.role === 'student') {
+                        const user = mockData.students.find(s => s.id == params.id && s.password == params.password);
+                        if(user) result = { status: 'success', user: { ...user, role: 'student', group: user.group } }; // Add group to session
+                        else result = { status: 'error', message: 'User not found' };
+                    } else {
+                        result = { status: 'error', message: 'Login failed' };
+                    }
+                    break;
+                case 'getAdminData':
+                    result = {
+                        status: 'success',
+                        exams: mockData.exams,
+                        students: mockData.students,
+                        results: mockData.results
+                    };
+                    break;
+                case 'saveExam':
+                    const exData = JSON.parse(params.data);
+                    if(exData.id) {
+                        const idx = mockData.exams.findIndex(e => e.id == exData.id);
+                        if(idx !== -1) mockData.exams[idx] = {...mockData.exams[idx], ...exData, questionsjson: JSON.stringify(exData.questions)};
+                    } else {
+                        mockData.exams.push({...exData, id: Date.now().toString(), questionsjson: JSON.stringify(exData.questions)});
+                    }
+                    result = { status: 'success' };
+                    break;
+                case 'deleteExam':
+                    mockData.exams = mockData.exams.filter(e => e.id != params.id);
+                    result = { status: 'success' };
+                    break;
+                case 'getStudentData':
+                    // ** LOGIC FOR LEVEL FILTERING IN MOCK **
+                    const requester = mockData.students.find(s => s.id == params.studentId);
+                    const reqLevel = requester ? requester.level : "";
+
+                    const myRes = mockData.results.filter(r => r.studentid == params.studentId);
+                    
+                    // Filter: Active AND Level Match
+                    const availExams = mockData.exams.filter(e => {
+                        return e.active && e.level === reqLevel;
+                    }).map(e => ({
+                        id: e.id, code: e.coursecode, title: e.title, level: e.level, desc: e.description, 
+                        timeLimit: e.timelimit, qCount: JSON.parse(e.questionsjson).length
+                    }));
+                    
+                    result = { status: 'success', exams: availExams, history: myRes };
+                    break;
+                case 'getExamPaper':
+                    const paper = mockData.exams.find(e => e.id == params.examId);
+                    if(paper) {
+                        const qs = JSON.parse(paper.questionsjson).map(q => ({text: q.text, options: q.options}));
+                        result = { status: 'success', exam: { id: paper.id, title: paper.title, code: paper.coursecode, timeLimit: paper.timelimit, qCount: qs.length }, questions: qs };
+                    } else result = { status: 'error' };
+                    break;
+                case 'submitExam':
+                    const pay = JSON.parse(params.payload);
+                    const ex = mockData.exams.find(e => e.id == pay.examId);
+                    const eqs = JSON.parse(ex.questionsjson);
+                    let score = 0;
+                    eqs.forEach((q,i) => { if(q.correct == pay.answers[i]) score++; });
+                    mockData.results.push({
+                        timestamp: new Date().toISOString(), studentid: pay.studentId, studentname: pay.studentName, examtitle: ex.title,
+                        score: score, totalscore: eqs.length, status: score >= eqs.length/2 ? 'ผ่าน' : 'ไม่ผ่าน',
+                        examid: ex.id,
+                        studentgroup: pay.studentGroup // Mock storing group
+                    });
+                    result = { status: 'success' };
+                    break;
+                case 'saveStudent':
+                    const sData = JSON.parse(params.data);
+                    // Mock Edit Support
+                    const targetId = sData.originalId || sData.id;
+                    const existIdx = mockData.students.findIndex(s => s.id == targetId);
+                    
+                    if(existIdx !== -1) {
+                        // Update
+                        mockData.students[existIdx] = { ...mockData.students[existIdx], ...sData, prefix: '' };
+                    } else {
+                        // Create
+                        mockData.students.push({...sData, prefix: ''});
+                    }
+                    result = { status: 'success' };
+                    break;
+                case 'deleteStudent':
+                    mockData.students = mockData.students.filter(s => s.id != params.id);
+                    result = { status: 'success' };
+                    break;
+                default:
+                    result = { status: 'error', message: 'Unknown Action' };
+            }
+            return result;
+        }
+
+        const app = {
+            user: null,
+            data: { exams: [], students: [], results: [] },
+            
+            init: async () => {
+                lucide.createIcons();
+                app.render('landing');
+                await app.loadPublicStats();
+            },
+
+            loadPublicStats: async () => {
+                try {
+                    const res = await api.call('getPublicData');
+                    document.getElementById('pubStatExam').innerText = res.stats.exams;
+                    document.getElementById('pubStatStudent').innerText = res.stats.students;
+                    document.getElementById('pubStatResult').innerText = res.stats.results;
+                } catch(e) { console.error("Load stats failed", e); }
+            },
+
+            render: (viewName) => {
+                const content = document.getElementById('appContent');
+                const tpl = document.getElementById(`tpl-${viewName}`);
+                if (!tpl) return;
+                content.innerHTML = tpl.innerHTML;
+                lucide.createIcons();
+                ui.updateNavbar();
+            },
+
+            login: async (e, role) => {
+                e.preventDefault();
+                const form = e.target;
+                const id = form.id.value;
+                const password = form.password.value;
+
+                try {
+                    const res = await api.call('login', { role, id, password });
+                    app.user = res.user;
+                    ui.toggleLoginModal(false);
+                    
+                    if (app.user.role === 'admin') {
+                        await app.loadAdminData();
+                        app.renderAdminDashboard();
+                    } else {
+                        await app.loadStudentData();
+                        app.renderStudentDashboard();
+                    }
+                } catch (err) {
+                    Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: err.message });
+                }
+            },
+
+            logout: () => {
+                app.user = null;
+                app.data = {};
+                app.render('landing');
+                app.loadPublicStats();
+            },
+
+            // --- ADMIN FLOW ---
+            loadAdminData: async () => {
+                const res = await api.call('getAdminData');
+                app.data = res;
+            },
+
+            renderAdminDashboard: () => {
+                app.render('admin-dashboard');
+                app.updateDashboardStats();
+                app.renderAdminExamList();
+            },
+
+            updateDashboardStats: () => {
+                const elExam = document.getElementById('statExamCount');
+                const elStd = document.getElementById('statStudentCount');
+                const elRes = document.getElementById('statResultCount');
+                if(elExam) elExam.innerText = app.data.exams.length;
+                if(elStd) elStd.innerText = app.data.students.length;
+                if(elRes) elRes.innerText = app.data.results.length;
+            },
+
+            // --- REPORTS MODULE ---
+            renderReports: () => {
+                const tpl = document.getElementById('tpl-admin-reports').innerHTML;
+                document.getElementById('adminContentArea').innerHTML = tpl;
+                lucide.createIcons();
+
+                const d = new Date();
+                document.getElementById('reportDate').innerText = `ข้อมูล ณ วันที่: ${d.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })} น.`;
+
+                document.getElementById('repStdCount').innerText = app.data.students.length;
+                document.getElementById('repExamCount').innerText = app.data.exams.length;
+                document.getElementById('repResCount').innerText = app.data.results.length;
+
+                const stdTable = document.getElementById('repStdTable');
+                if (app.data.students.length === 0) {
+                    stdTable.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">ไม่พบข้อมูล</td></tr>`;
+                } else {
+                    const sortedStd = [...app.data.students].sort((a,b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
+                    stdTable.innerHTML = sortedStd.map(s => `
+                        <tr class="hover:bg-slate-50">
+                            <td class="border p-2 font-mono text-xs">${s.id}</td>
+                            <td class="border p-2">${s.prefix}${s.name}</td>
+                            <td class="border p-2">${s.group}</td>
+                            <td class="border p-2">${s.level || '-'}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                const resTable = document.getElementById('repResTable');
+                if (app.data.results.length === 0) {
+                    resTable.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">ยังไม่มีการสอบ</td></tr>`;
+                } else {
+                    resTable.innerHTML = app.data.results.slice(0, 50).map(r => { 
+                        const date = new Date(r.timestamp);
+                        // Lookup group for old data or use saved group
+                        let group = r.studentgroup || '-';
+                        if (group === '-' || !group) {
+                            const std = app.data.students.find(s => String(s.id) === String(r.studentid));
+                            if(std) group = std.group;
+                        }
+
+                        return `
+                        <tr class="hover:bg-slate-50">
+                            <td class="border p-2 text-xs text-slate-500">${date.toLocaleDateString('th-TH')} ${date.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'})}</td>
+                            <td class="border p-2">${r.studentname}</td>
+                            <td class="border p-2 text-indigo-700 font-medium">${group}</td>
+                            <td class="border p-2">${r.examtitle}</td>
+                            <td class="border p-2 text-center font-bold">${r.score} / ${r.totalscore}</td>
+                            <td class="border p-2 text-center">
+                                <span class="${r.status === 'ผ่าน' ? 'text-green-600' : 'text-red-600'} font-bold text-xs">
+                                    ${r.status}
+                                </span>
+                            </td>
+                        </tr>
+                    `}).join('');
+                }
+            },
+
+            renderAdminExamList: () => {
+                const container = document.getElementById('adminContentArea');
+                if(!container) { app.renderAdminDashboard(); return; }
+
+                let html = `
+                    <div class="flex justify-between items-center mb-4 fade-in">
+                        <h3 class="font-bold text-lg text-slate-700">รายการข้อสอบในระบบ</h3>
+                        <button onclick="editor.open()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-indigo-700 transition flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> สร้างข้อสอบใหม่
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto fade-in">
+                        <table class="w-full text-sm text-left text-slate-600">
+                            <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b">
+                                <tr>
+                                    <th class="px-4 py-3">รหัสวิชา</th>
+                                    <th class="px-4 py-3">ชื่อวิชา</th>
+                                    <th class="px-4 py-3">ระดับ</th>
+                                    <th class="px-4 py-3 text-center">สถานะ</th>
+                                    <th class="px-4 py-3 text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                if(app.data.exams.length === 0) {
+                    html += `<tr><td colspan="5" class="text-center py-8 text-slate-400">ยังไม่มีข้อมูลข้อสอบ</td></tr>`;
+                } else {
+                    app.data.exams.forEach(ex => {
+                        const activeBadge = ex.active === 'TRUE' || ex.active === true 
+                            ? `<span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded border border-green-200">ใช้งาน</span>`
+                            : `<span class="bg-slate-100 text-slate-800 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">ปิด</span>`;
+                        
+                        html += `
+                            <tr class="bg-white border-b hover:bg-slate-50 transition">
+                                <td class="px-4 py-3 font-medium">${ex.coursecode}</td>
+                                <td class="px-4 py-3 font-semibold text-indigo-600">${ex.title}</td>
+                                <td class="px-4 py-3">${ex.level}</td>
+                                <td class="px-4 py-3 text-center">${activeBadge}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button onclick="editor.edit('${ex.id}')" class="p-1.5 text-blue-600 hover:bg-blue-100 rounded"><i data-lucide="edit-2" class="w-4 h-4"></i></button>
+                                        <button onclick="app.deleteExam('${ex.id}')" class="p-1.5 text-red-600 hover:bg-red-100 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+                html += `</tbody></table></div>`;
+                container.innerHTML = html;
+                lucide.createIcons();
+            },
+
+            deleteExam: async (id) => {
+                const result = await Swal.fire({
+                    title: 'ยืนยันการลบ?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    confirmButtonText: 'ลบข้อมูล'
+                });
+
+                if (result.isConfirmed) {
+                    await api.call('deleteExam', {id});
+                    await app.loadAdminData();
+                    app.updateDashboardStats();
+                    app.renderAdminExamList();
+                    Swal.fire({icon: 'success', title: 'ลบสำเร็จ', timer: 1500, showConfirmButton: false});
+                }
+            },
+
+            // --- STUDENT FLOW ---
+            loadStudentData: async () => {
+                const res = await api.call('getStudentData', { studentId: app.user.id });
+                app.data.studentExams = res.exams;
+                app.data.studentHistory = res.history;
+            },
+
+            renderStudentDashboard: () => {
+                app.render('student-dashboard');
+                document.getElementById('stdName').innerText = app.user.name;
+                document.getElementById('stdId').innerText = app.user.id;
+                document.getElementById('stdGroup').innerText = app.user.group;
+                
+                const passed = app.data.studentHistory.filter(h => h.status === 'ผ่าน').length;
+                document.getElementById('stdPassedCount').innerText = passed;
+
+                app.renderStudentExams();
+                app.renderStudentHistory();
+            },
+
+            renderStudentExams: () => {
+                const container = document.getElementById('studentViewExams');
+                const myHistory = app.data.studentHistory;
+                
+                if(app.data.studentExams.length === 0) {
+                    container.innerHTML = `<div class="col-span-full text-center py-10 text-slate-400">ไม่มีชุดข้อสอบสำหรับระดับชั้นของคุณ</div>`;
+                    return;
+                }
+
+                container.innerHTML = app.data.studentExams.map(ex => {
+                    const attempts = myHistory.filter(h => String(h.examid) === String(ex.id));
+                    const attemptCount = attempts.length;
+                    const bestScore = attempts.reduce((max, curr) => Math.max(max, parseInt(curr.score)), 0);
+                    
+                    const statusText = attemptCount > 0 
+                        ? `<span class="text-xs text-amber-600 font-bold">สอบแล้ว ${attemptCount} ครั้ง (สูงสุด ${bestScore}/${ex.qCount})</span>`
+                        : `<span class="text-xs text-slate-400">ยังไม่เคยทำ</span>`;
+                    
+                    return `
+                    <div class="glass-card rounded-xl p-5 flex flex-col justify-between h-full hover:border-indigo-300 transition-all duration-300">
+                        <div>
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded border border-indigo-200">${ex.code}</span>
+                                ${statusText}
+                            </div>
+                            <h3 class="text-lg font-bold text-slate-800 mb-2 leading-tight">${ex.title}</h3>
+                            <p class="text-slate-500 text-sm mb-4 line-clamp-2">${ex.desc}</p>
+                        </div>
+                        <div class="mt-auto border-t border-slate-100 pt-4 flex items-center justify-between">
+                            <div class="text-xs text-slate-500 font-medium flex items-center gap-1">
+                                <i data-lucide="clock" class="w-3 h-3"></i> ${ex.timeLimit} นาที
+                                <span class="mx-1">•</span>
+                                <i data-lucide="help-circle" class="w-3 h-3"></i> ${ex.qCount} ข้อ
+                            </div>
+                            <button onclick="examRoom.start('${ex.id}')" class="px-4 py-2 rounded-lg text-sm font-bold transition bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-lg">
+                                ${attemptCount > 0 ? 'ทำซ้ำ' : 'เริ่มทำ'}
+                            </button>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+                lucide.createIcons();
+            },
+
+            renderStudentHistory: () => {
+                const tbody = document.getElementById('historyTableBody');
+                if(app.data.studentHistory.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-400">ยังไม่มีประวัติการสอบ</td></tr>`;
+                    return;
+                }
+                
+                const sortedHistory = [...app.data.studentHistory].sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                tbody.innerHTML = sortedHistory.map(h => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-6 py-4 text-xs text-slate-500">${new Date(h.timestamp).toLocaleDateString('th-TH')}</td>
+                        <td class="px-6 py-4 font-medium text-slate-700">${h.examtitle}</td>
+                        <td class="px-6 py-4 text-center font-bold text-indigo-600">${h.score} / ${h.totalscore}</td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="${h.status === 'ผ่าน' ? 'text-green-600 bg-green-100 border-green-200' : 'text-red-600 bg-red-100 border-red-200'} px-2 py-1 rounded text-xs font-bold border">
+                                ${h.status}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            },
+
+            switchStudentTab: (tab) => {
+                const exams = document.getElementById('studentViewExams');
+                const history = document.getElementById('studentViewHistory');
+                const btnE = document.getElementById('btnTabExams');
+                const btnH = document.getElementById('btnTabHistory');
+
+                if (tab === 'exams') {
+                    exams.classList.remove('hidden'); history.classList.add('hidden');
+                    btnE.className = "px-6 py-2 rounded-lg text-sm font-bold transition shadow-sm bg-white text-indigo-600";
+                    btnH.className = "px-6 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-indigo-600 transition";
+                } else {
+                    exams.classList.add('hidden'); history.classList.remove('hidden');
+                    btnH.className = "px-6 py-2 rounded-lg text-sm font-bold transition shadow-sm bg-white text-indigo-600";
+                    btnE.className = "px-6 py-2 rounded-lg text-sm font-bold text-slate-500 hover:text-indigo-600 transition";
+                }
+            }
+        };
+
+        // --- EDITOR MODULE ---
+        const editor = {
+            currentExam: null,
+            questions: [],
+
+            open: () => {
+                editor.currentExam = null;
+                editor.questions = [];
+                const tpl = document.getElementById('tpl-exam-editor').innerHTML;
+                document.getElementById('adminContentArea').innerHTML = tpl;
+                editor.renderQuestions();
+                lucide.createIcons();
+            },
+
+            edit: (id) => {
+                const ex = app.data.exams.find(e => String(e.id) === String(id));
+                if (!ex) return;
+                
+                const tpl = document.getElementById('tpl-exam-editor').innerHTML;
+                document.getElementById('adminContentArea').innerHTML = tpl;
+                lucide.createIcons();
+                
+                document.getElementById('editorTitle').innerText = 'แก้ไขชุดข้อสอบ';
+                document.getElementById('examCode').value = ex.coursecode;
+                document.getElementById('examTitle').value = ex.title;
+                document.getElementById('examLevel').value = ex.level;
+                document.getElementById('examDesc').value = ex.description;
+                document.getElementById('examTime').value = ex.timelimit;
+                document.getElementById('examActive').checked = (ex.active === 'TRUE' || ex.active === true);
+
+                editor.currentExam = ex;
+                editor.questions = JSON.parse(ex.questionsjson || "[]");
+                editor.renderQuestions();
+            },
+
+            addQuestion: () => {
+                editor.questions.push({ text: "", options: ["", "", "", ""], correct: 0 });
+                editor.renderQuestions();
+            },
+
+            removeQuestion: (idx) => {
+                editor.questions.splice(idx, 1);
+                editor.renderQuestions();
+            },
+
+            renderQuestions: () => {
+                const container = document.getElementById('questionsContainer');
+                document.getElementById('qCountBadge').innerText = `${editor.questions.length} ข้อ`;
+
+                container.innerHTML = editor.questions.map((q, idx) => {
+                    const choicesLabels = ['ก', 'ข', 'ค', 'ง'];
+                    const optionsHtml = q.options.map((opt, optIdx) => `
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="flex items-center">
+                                <input type="radio" name="correct_${idx}" value="${optIdx}" ${q.correct == optIdx ? 'checked' : ''} 
+                                    onchange="editor.updateCorrect(${idx}, ${optIdx})"
+                                    class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500 cursor-pointer">
+                            </div>
+                            <span class="text-slate-500 font-bold w-6">${choicesLabels[optIdx]}.</span>
+                            <input type="text" value="${opt}" oninput="editor.updateOption(${idx}, ${optIdx}, this.value)" 
+                                class="w-full px-3 py-1.5 border border-slate-200 rounded text-sm focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="ตัวเลือก ${choicesLabels[optIdx]}">
+                        </div>
+                    `).join('');
+
+                    return `
+                    <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 relative group hover:shadow-md transition">
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition">
+                            <button onclick="editor.removeQuestion(${idx})" class="text-red-400 hover:text-red-600 p-1"><i data-lucide="trash" class="w-4 h-4"></i></button>
+                        </div>
+                        <div class="mb-3">
+                            <label class="block text-sm font-bold text-slate-700 mb-1">ข้อที่ ${idx + 1}</label>
+                            <textarea oninput="editor.updateText(${idx}, this.value)" rows="2" 
+                                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" 
+                                placeholder="ระบุคำถาม...">${q.text}</textarea>
+                        </div>
+                        <div class="pl-2 border-l-2 border-slate-200">
+                             <p class="text-xs text-slate-400 mb-2">ระบุตัวเลือกและเลือกคำตอบที่ถูกต้อง (วงกลม)</p>
+                             ${optionsHtml}
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+                lucide.createIcons();
+            },
+
+            updateText: (qIdx, val) => editor.questions[qIdx].text = val,
+            updateOption: (qIdx, optIdx, val) => editor.questions[qIdx].options[optIdx] = val,
+            updateCorrect: (qIdx, optIdx) => editor.questions[qIdx].correct = optIdx,
+
+            save: async () => {
+                const code = document.getElementById('examCode').value;
+                const title = document.getElementById('examTitle').value;
+                if(!code || !title) return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุรหัสและชื่อรายวิชา', 'warning');
+                if(editor.questions.length === 0) return Swal.fire('ไม่มีข้อสอบ', 'กรุณาเพิ่มข้อสอบอย่างน้อย 1 ข้อ', 'warning');
+
+                const payload = {
+                    id: editor.currentExam ? editor.currentExam.id : null,
+                    code: code,
+                    title: title,
+                    level: document.getElementById('examLevel').value,
+                    desc: document.getElementById('examDesc').value,
+                    timeLimit: parseInt(document.getElementById('examTime').value) || 60,
+                    active: document.getElementById('examActive').checked,
+                    questions: editor.questions
+                };
+
+                await api.call('saveExam', { data: JSON.stringify(payload) });
+                Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
+                await app.loadAdminData();
+                app.updateDashboardStats();
+                app.renderAdminExamList();
+            }
+        };
+
+        // --- STUDENT MGMT (ADMIN) ---
+        app.renderStudentManagement = () => {
+             const container = document.getElementById('adminContentArea');
+             if(!container) { app.renderAdminDashboard(); return; }
+             let html = `
+                <div class="flex justify-between items-center mb-4 fade-in">
+                    <h3 class="font-bold text-lg text-slate-700">รายชื่อนักศึกษา</h3>
+                    <button onclick="app.addStudentModal()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-emerald-700 transition flex items-center gap-2">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i> เพิ่มนักศึกษา
+                    </button>
+                </div>
+                <div class="overflow-x-auto fade-in">
+                    <table class="w-full text-sm text-left text-slate-600">
+                        <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b">
+                            <tr>
+                                <th class="px-4 py-3">รหัส</th>
+                                <th class="px-4 py-3">ชื่อ-สกุล</th>
+                                <th class="px-4 py-3">ศกร.ระดับตำบล</th>
+                                <th class="px-4 py-3">ระดับชั้น</th>
+                                <th class="px-4 py-3">รหัสผ่าน</th>
+                                <th class="px-4 py-3 text-center">จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+             `;
+             app.data.students.forEach(s => {
+                 html += `
+                    <tr class="bg-white border-b hover:bg-slate-50">
+                        <td class="px-4 py-3 font-mono">${s.id}</td>
+                        <td class="px-4 py-3 font-medium">${s.prefix}${s.name}</td>
+                        <td class="px-4 py-3"><span class="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-xs font-bold">${s.group}</span></td>
+                        <td class="px-4 py-3 text-slate-600">${s.level || '-'}</td>
+                        <td class="px-4 py-3 font-mono text-slate-400">****</td>
+                        <td class="px-4 py-3 text-center">
+                             <div class="flex items-center justify-center gap-2">
+                                 <button onclick="app.editStudent('${s.id}')" class="text-blue-600 hover:bg-blue-100 p-1.5 rounded transition"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                                 <button onclick="app.deleteStudent('${s.id}')" class="text-red-500 hover:bg-red-100 p-1.5 rounded transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                             </div>
+                        </td>
+                    </tr>
+                 `;
+             });
+             html += `</tbody></table></div>`;
+             container.innerHTML = html;
+             lucide.createIcons();
+        };
+
+        app.editStudent = (id) => {
+            const student = app.data.students.find(s => String(s.id) === String(id));
+            if(student) {
+                app.addStudentModal(student);
+            }
+        };
+
+        app.addStudentModal = async (editData = null) => {
+            const isEdit = !!editData;
+            const titleText = isEdit ? 'แก้ไขข้อมูลนักศึกษา' : 'ลงทะเบียนนักศึกษาใหม่';
+            const icon = isEdit ? 'edit-2' : 'user-plus';
+            const btnText = isEdit ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล';
+
+            const { value: formValues } = await Swal.fire({
+                title: `<div class="text-xl font-bold text-indigo-600 mb-2 flex items-center gap-2 justify-center"><i data-lucide="${icon}"></i> ${titleText}</div>`,
+                html: `
+                    <div class="text-left space-y-4 px-2">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">รหัสนักศึกษา (13 หลัก)</label>
+                                <input id="swal-id" value="${editData ? editData.id : ''}" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-slate-50 focus:bg-white" placeholder="ระบุรหัสนักศึกษา">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">ชื่อ-นามสกุล</label>
+                                <input id="swal-name" value="${editData ? editData.name : ''}" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-slate-50 focus:bg-white" placeholder="ระบุชื่อและนามสกุล">
+                            </div>
+                            <div class="col-span-1">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">ศกร.ระดับตำบล</label>
+                                <select id="swal-group" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition cursor-pointer text-sm">
+                                    <option value="" disabled ${!editData ? 'selected' : ''}>เลือกตำบล...</option>
+                                    <option value="ดอยหล่อ" ${editData && editData.group === 'ดอยหล่อ' ? 'selected' : ''}>1. ดอยหล่อ</option>
+                                    <option value="สองแคว" ${editData && editData.group === 'สองแคว' ? 'selected' : ''}>2. สองแคว</option>
+                                    <option value="สันติสุข" ${editData && editData.group === 'สันติสุข' ? 'selected' : ''}>3. สันติสุข</option>
+                                    <option value="ยางคราม" ${editData && editData.group === 'ยางคราม' ? 'selected' : ''}>4. ยางคราม</option>
+                                </select>
+                            </div>
+                            <div class="col-span-1">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">ระดับชั้น</label>
+                                <select id="swal-level" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition cursor-pointer text-sm">
+                                    <option value="" disabled ${!editData ? 'selected' : ''}>เลือกระดับ...</option>
+                                    <option value="ประถมศึกษา" ${editData && editData.level === 'ประถมศึกษา' ? 'selected' : ''}>1. ประถมศึกษา</option>
+                                    <option value="มัธยมศึกษาตอนต้น" ${editData && editData.level === 'มัธยมศึกษาตอนต้น' ? 'selected' : ''}>2. มัธยมศึกษาตอนต้น</option>
+                                    <option value="มัธยมศึกษาตอนปลาย" ${editData && editData.level === 'มัธยมศึกษาตอนปลาย' ? 'selected' : ''}>3. มัธยมศึกษาตอนปลาย</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">รหัสผ่านสำหรับเข้าใช้งาน</label>
+                                <input id="swal-pass" value="${editData ? editData.password : ''}" type="text" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-slate-50 focus:bg-white" placeholder="กำหนดรหัสผ่าน">
+                            </div>
+                        </div>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: `<span class="flex items-center gap-2">${btnText}</span>`,
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#4f46e5',
+                cancelButtonColor: '#94a3b8',
+                customClass: {
+                    popup: 'rounded-2xl shadow-xl',
+                    confirmButton: 'px-6 py-2.5 rounded-lg font-bold',
+                    cancelButton: 'px-6 py-2.5 rounded-lg font-medium'
+                },
+                didOpen: () => {
+                    lucide.createIcons();
+                },
+                focusConfirm: false,
+                preConfirm: () => {
+                    const id = document.getElementById('swal-id').value;
+                    const name = document.getElementById('swal-name').value;
+                    const group = document.getElementById('swal-group').value;
+                    const level = document.getElementById('swal-level').value;
+                    const pass = document.getElementById('swal-pass').value;
+                    
+                    if (!id || !name || !group || !level || !pass) {
+                        Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบทุกช่อง');
+                        return false;
+                    }
+                    return { 
+                        id, name, group, level, password: pass,
+                        originalId: editData ? editData.id : null
+                    };
+                }
+            });
+
+            if (formValues) {
+                await api.call('saveStudent', { data: JSON.stringify({ ...formValues, prefix: '' }) });
+                Swal.fire({
+                    icon: 'success',
+                    title: 'บันทึกสำเร็จ',
+                    text: 'ข้อมูลถูกบันทึกเรียบร้อยแล้ว',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                await app.loadAdminData();
+                app.updateDashboardStats();
+                app.renderStudentManagement();
+            }
+        };
+
+        app.deleteStudent = async (id) => {
+             const c = await Swal.fire({ title: 'ลบนักศึกษา?', icon:'warning', showCancelButton:true, confirmButtonColor:'#d33'});
+             if(c.isConfirmed) {
+                 await api.call('deleteStudent', {id});
+                 await app.loadAdminData();
+                 app.updateDashboardStats();
+                 app.renderStudentManagement();
+                 Swal.fire({ icon: 'success', title: 'ลบข้อมูลสำเร็จ', timer: 1500, showConfirmButton: false });
+             }
+        };
+
+        // --- EXAM ROOM MODULE ---
+        const examRoom = {
+            data: null,
+            timer: null,
+            answers: {}, 
+
+            start: (id) => {
+                const ex = app.data.studentExams.find(e => String(e.id) === String(id));
+                if (!ex) return;
+                
+                Swal.fire({
+                    title: 'เริ่มทำข้อสอบ?',
+                    text: `วิชา: ${ex.title} เวลา ${ex.timeLimit} นาที`,
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonText: 'เริ่มเลย',
+                    confirmButtonColor: '#4f46e5'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        examRoom.launch(ex.id);
+                    }
+                });
+            },
+
+            launch: async (examId) => {
+                const paper = await api.call('getExamPaper', { examId });
+                if(paper.status === 'error') return Swal.fire('Error', 'Could not load exam', 'error');
+                
+                examRoom.data = paper.exam;
+                examRoom.answers = {};
+                
+                app.render('exam-room');
+                document.getElementById('roomExamTitle').innerText = examRoom.data.title;
+                document.getElementById('roomExamCode').innerText = examRoom.data.code;
+                
+                examRoom.renderQuestions(paper.questions);
+                const time = parseInt(examRoom.data.timeLimit) || 60;
+                examRoom.startTimer(time);
+            },
+
+            renderQuestions: (questions) => {
+                const container = document.getElementById('examQuestionsArea');
+                const labels = ['ก', 'ข', 'ค', 'ง'];
+                
+                if(!questions || questions.length === 0) {
+                    container.innerHTML = '<div class="text-center text-slate-400 py-10">ไม่พบคำถามในชุดข้อสอบนี้</div>';
+                    return;
+                }
+
+                container.innerHTML = questions.map((q, idx) => {
+                    const opts = (q.options || []).map((opt, optIdx) => `
+                        <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer transition">
+                            <input type="radio" name="q_${idx}" value="${optIdx}" onchange="examRoom.select(${idx}, ${optIdx})" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+                            <span class="font-bold text-slate-500 w-5">${labels[optIdx]}.</span>
+                            <span class="text-slate-700">${opt}</span>
+                        </label>
+                    `).join('');
+
+                    return `
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                            <div class="mb-4">
+                                <span class="bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded text-sm mb-2 inline-block">ข้อที่ ${idx + 1}</span>
+                                <p class="text-lg font-medium text-slate-800">${q.text}</p>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                ${opts}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            },
+
+            select: (qIdx, choiceIdx) => {
+                examRoom.answers[qIdx] = choiceIdx;
+            },
+
+            startTimer: (minutes) => {
+                let time = (minutes || 60) * 60;
+                const display = document.getElementById('timerDisplay');
+                
+                if(examRoom.timer) clearInterval(examRoom.timer);
+                
+                examRoom.timer = setInterval(() => {
+                    const m = Math.floor(time / 60);
+                    const s = time % 60;
+                    display.innerText = `${m}:${s < 10 ? '0'+s : s}`;
+                    
+                    if (time <= 0) {
+                        clearInterval(examRoom.timer);
+                        Swal.fire('หมดเวลา', 'ระบบจะส่งคำตอบโดยอัตโนมัติ', 'warning').then(() => {
+                            examRoom.submit(true);
+                        });
+                    }
+                    time--;
+                }, 1000);
+            },
+
+            submit: async (force = false) => {
+                const qCount = examRoom.data.qCount;
+                const answered = Object.keys(examRoom.answers).length;
+                
+                if (!force && answered < qCount) {
+                    const confirm = await Swal.fire({
+                        title: 'ทำข้อสอบไม่ครบ',
+                        text: `คุณทำไปแล้ว ${answered} จาก ${qCount} ข้อ ยืนยันจะส่งหรือไม่?`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'ส่งคำตอบ'
+                    });
+                    if (!confirm.isConfirmed) return;
+                } else if (!force) {
+                    const confirm = await Swal.fire({
+                        title: 'ยืนยันการส่งคำตอบ',
+                        text: "เมื่อส่งแล้วจะไม่สามารถแก้ไขได้",
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'ส่งเลย'
+                    });
+                    if (!confirm.isConfirmed) return;
+                }
+
+                clearInterval(examRoom.timer);
+                
+                const payload = {
+                    studentId: app.user.id,
+                    studentName: app.user.name,
+                    studentGroup: app.user.group,
+                    examId: examRoom.data.id,
+                    answers: examRoom.answers
+                };
+
+                await api.call('submitExam', { payload: JSON.stringify(payload) });
+                
+                Swal.fire({
+                    title: 'ส่งข้อสอบเรียบร้อย',
+                    text: 'ระบบได้บันทึกคะแนนของคุณแล้ว',
+                    icon: 'success'
+                }).then(() => {
+                    app.loadStudentData();
+                    app.renderStudentDashboard();
+                });
+            }
+        };
+
+        // --- UI HELPERS ---
+        const ui = {
+            updateNavbar: () => {
+                const btn = document.getElementById('navLoginBtn');
+                const userArea = document.getElementById('navUser');
+                const name = document.getElementById('navUserName');
+
+                if (app.user) {
+                    btn.classList.add('hidden');
+                    userArea.classList.remove('hidden');
+                    name.innerText = app.user.name;
+                } else {
+                    btn.classList.remove('hidden');
+                    userArea.classList.add('hidden');
+                }
+            },
+            toggleLoginModal: (show) => {
+                const modal = document.getElementById('loginModal');
+                if (show) {
+                    modal.classList.remove('hidden');
+                    ui.switchLoginTab('student'); // Default to student
+                } else {
+                    modal.classList.add('hidden');
+                }
+            },
+            switchLoginTab: (role) => {
+                const sTab = document.getElementById('tabStudent');
+                const aTab = document.getElementById('tabAdmin');
+                const sForm = document.getElementById('formStudent');
+                const aForm = document.getElementById('formAdmin');
+
+                if(role === 'student') {
+                    sForm.classList.remove('hidden'); aForm.classList.add('hidden');
+                    sTab.className = "flex-1 py-2.5 rounded-md bg-white shadow-sm text-indigo-600 font-bold text-sm transition";
+                    aTab.className = "flex-1 py-2.5 rounded-md text-slate-500 font-bold text-sm transition hover:text-indigo-600";
+                } else {
+                    aForm.classList.remove('hidden'); sForm.classList.add('hidden');
+                    aTab.className = "flex-1 py-2.5 rounded-md bg-white shadow-sm text-slate-800 font-bold text-sm transition";
+                    sTab.className = "flex-1 py-2.5 rounded-md text-slate-500 font-bold text-sm transition hover:text-indigo-600";
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', app.init);
+    </script>
+</body>
+</html>
