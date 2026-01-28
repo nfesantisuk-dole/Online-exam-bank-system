@@ -150,7 +150,7 @@
                         <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 mt-2">
                             เข้าสู่ระบบนักศึกษา
                         </button>
-                        <p class="text-xs text-center text-slate-400 mt-4">ทดสอบ: รหัส 660001 (ม.ต้น), 660002 (ม.ปลาย), 660003 (ประถม) / รหัสผ่าน 1234</p>
+                        <p class="text-xs text-center text-slate-400 mt-4"></p>
                     </form>
 
                     <form id="formAdmin" onsubmit="app.login(event, 'admin')" class="space-y-4 hidden">
@@ -171,7 +171,7 @@
                         <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 mt-2">
                             เข้าสู่ระบบเจ้าหน้าที่
                         </button>
-                        <p class="text-xs text-center text-slate-400 mt-4">ทดสอบ: รหัสผ่าน admin</p>
+                        <p class="text-xs text-center text-slate-400 mt-4"></p>
                     </form>
                 </div>
             </div>
@@ -383,7 +383,7 @@
                             <tr>
                                 <th class="border p-2">วัน-เวลา</th>
                                 <th class="border p-2">ผู้สอบ</th>
-                                <th class="border p-2">ศกร.ระดับตำบล</th>
+                                <th class="border p-2">สังกัด (ศกร.ตำบล)</th>
                                 <th class="border p-2">วิชา</th>
                                 <th class="border p-2 text-center">คะแนน</th>
                                 <th class="border p-2 text-center">ผลลัพธ์</th>
@@ -1131,163 +1131,6 @@
                 app.updateDashboardStats();
                 app.renderAdminExamList();
             }
-        };
-
-        // --- STUDENT MGMT (ADMIN) ---
-        app.renderStudentManagement = () => {
-             const container = document.getElementById('adminContentArea');
-             if(!container) { app.renderAdminDashboard(); return; }
-             let html = `
-                <div class="flex justify-between items-center mb-4 fade-in">
-                    <h3 class="font-bold text-lg text-slate-700">รายชื่อนักศึกษา</h3>
-                    <button onclick="app.addStudentModal()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-emerald-700 transition flex items-center gap-2">
-                        <i data-lucide="user-plus" class="w-4 h-4"></i> เพิ่มนักศึกษา
-                    </button>
-                </div>
-                <div class="overflow-x-auto fade-in">
-                    <table class="w-full text-sm text-left text-slate-600">
-                        <thead class="text-xs text-slate-700 uppercase bg-slate-50 border-b">
-                            <tr>
-                                <th class="px-4 py-3">รหัส</th>
-                                <th class="px-4 py-3">ชื่อ-สกุล</th>
-                                <th class="px-4 py-3">ศกร.ระดับตำบล</th>
-                                <th class="px-4 py-3">ระดับชั้น</th>
-                                <th class="px-4 py-3">รหัสผ่าน</th>
-                                <th class="px-4 py-3 text-center">จัดการ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-             `;
-             app.data.students.forEach(s => {
-                 html += `
-                    <tr class="bg-white border-b hover:bg-slate-50">
-                        <td class="px-4 py-3 font-mono">${s.id}</td>
-                        <td class="px-4 py-3 font-medium">${s.prefix}${s.name}</td>
-                        <td class="px-4 py-3"><span class="bg-indigo-50 text-indigo-700 px-2 py-1 rounded-md text-xs font-bold">${s.group}</span></td>
-                        <td class="px-4 py-3 text-slate-600">${s.level || '-'}</td>
-                        <td class="px-4 py-3 font-mono text-slate-400">****</td>
-                        <td class="px-4 py-3 text-center">
-                             <div class="flex items-center justify-center gap-2">
-                                 <button onclick="app.editStudent('${s.id}')" class="text-blue-600 hover:bg-blue-100 p-1.5 rounded transition"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-                                 <button onclick="app.deleteStudent('${s.id}')" class="text-red-500 hover:bg-red-100 p-1.5 rounded transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                             </div>
-                        </td>
-                    </tr>
-                 `;
-             });
-             html += `</tbody></table></div>`;
-             container.innerHTML = html;
-             lucide.createIcons();
-        };
-
-        app.editStudent = (id) => {
-            const student = app.data.students.find(s => String(s.id) === String(id));
-            if(student) {
-                app.addStudentModal(student);
-            }
-        };
-
-        app.addStudentModal = async (editData = null) => {
-            const isEdit = !!editData;
-            const titleText = isEdit ? 'แก้ไขข้อมูลนักศึกษา' : 'ลงทะเบียนนักศึกษาใหม่';
-            const icon = isEdit ? 'edit-2' : 'user-plus';
-            const btnText = isEdit ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล';
-
-            const { value: formValues } = await Swal.fire({
-                title: `<div class="text-xl font-bold text-indigo-600 mb-2 flex items-center gap-2 justify-center"><i data-lucide="${icon}"></i> ${titleText}</div>`,
-                html: `
-                    <div class="text-left space-y-4 px-2">
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="col-span-2">
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">รหัสนักศึกษา (13 หลัก)</label>
-                                <input id="swal-id" value="${editData ? editData.id : ''}" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-slate-50 focus:bg-white" placeholder="ระบุรหัสนักศึกษา">
-                            </div>
-                            <div class="col-span-2">
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">ชื่อ-นามสกุล</label>
-                                <input id="swal-name" value="${editData ? editData.name : ''}" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-slate-50 focus:bg-white" placeholder="ระบุชื่อและนามสกุล">
-                            </div>
-                            <div class="col-span-1">
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">ศกร.ระดับตำบล</label>
-                                <select id="swal-group" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition cursor-pointer text-sm">
-                                    <option value="" disabled ${!editData ? 'selected' : ''}>เลือกตำบล...</option>
-                                    <option value="ดอยหล่อ" ${editData && editData.group === 'ดอยหล่อ' ? 'selected' : ''}>1. ดอยหล่อ</option>
-                                    <option value="สองแคว" ${editData && editData.group === 'สองแคว' ? 'selected' : ''}>2. สองแคว</option>
-                                    <option value="สันติสุข" ${editData && editData.group === 'สันติสุข' ? 'selected' : ''}>3. สันติสุข</option>
-                                    <option value="ยางคราม" ${editData && editData.group === 'ยางคราม' ? 'selected' : ''}>4. ยางคราม</option>
-                                </select>
-                            </div>
-                            <div class="col-span-1">
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">ระดับชั้น</label>
-                                <select id="swal-level" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white transition cursor-pointer text-sm">
-                                    <option value="" disabled ${!editData ? 'selected' : ''}>เลือกระดับ...</option>
-                                    <option value="ประถมศึกษา" ${editData && editData.level === 'ประถมศึกษา' ? 'selected' : ''}>1. ประถมศึกษา</option>
-                                    <option value="มัธยมศึกษาตอนต้น" ${editData && editData.level === 'มัธยมศึกษาตอนต้น' ? 'selected' : ''}>2. มัธยมศึกษาตอนต้น</option>
-                                    <option value="มัธยมศึกษาตอนปลาย" ${editData && editData.level === 'มัธยมศึกษาตอนปลาย' ? 'selected' : ''}>3. มัธยมศึกษาตอนปลาย</option>
-                                </select>
-                            </div>
-                            <div class="col-span-2">
-                                <label class="block text-xs font-bold text-gray-500 uppercase mb-1">รหัสผ่านสำหรับเข้าใช้งาน</label>
-                                <input id="swal-pass" value="${editData ? editData.password : ''}" type="text" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-slate-50 focus:bg-white" placeholder="กำหนดรหัสผ่าน">
-                            </div>
-                        </div>
-                    </div>
-                `,
-                showCancelButton: true,
-                confirmButtonText: `<span class="flex items-center gap-2">${btnText}</span>`,
-                cancelButtonText: 'ยกเลิก',
-                confirmButtonColor: '#4f46e5',
-                cancelButtonColor: '#94a3b8',
-                customClass: {
-                    popup: 'rounded-2xl shadow-xl',
-                    confirmButton: 'px-6 py-2.5 rounded-lg font-bold',
-                    cancelButton: 'px-6 py-2.5 rounded-lg font-medium'
-                },
-                didOpen: () => {
-                    lucide.createIcons();
-                },
-                focusConfirm: false,
-                preConfirm: () => {
-                    const id = document.getElementById('swal-id').value;
-                    const name = document.getElementById('swal-name').value;
-                    const group = document.getElementById('swal-group').value;
-                    const level = document.getElementById('swal-level').value;
-                    const pass = document.getElementById('swal-pass').value;
-                    
-                    if (!id || !name || !group || !level || !pass) {
-                        Swal.showValidationMessage('กรุณากรอกข้อมูลให้ครบทุกช่อง');
-                        return false;
-                    }
-                    return { 
-                        id, name, group, level, password: pass,
-                        originalId: editData ? editData.id : null
-                    };
-                }
-            });
-
-            if (formValues) {
-                await api.call('saveStudent', { data: JSON.stringify({ ...formValues, prefix: '' }) });
-                Swal.fire({
-                    icon: 'success',
-                    title: 'บันทึกสำเร็จ',
-                    text: 'ข้อมูลถูกบันทึกเรียบร้อยแล้ว',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-                await app.loadAdminData();
-                app.updateDashboardStats();
-                app.renderStudentManagement();
-            }
-        };
-
-        app.deleteStudent = async (id) => {
-             const c = await Swal.fire({ title: 'ลบนักศึกษา?', icon:'warning', showCancelButton:true, confirmButtonColor:'#d33'});
-             if(c.isConfirmed) {
-                 await api.call('deleteStudent', {id});
-                 await app.loadAdminData();
-                 app.updateDashboardStats();
-                 app.renderStudentManagement();
-                 Swal.fire({ icon: 'success', title: 'ลบข้อมูลสำเร็จ', timer: 1500, showConfirmButton: false });
-             }
         };
 
         // --- EXAM ROOM MODULE ---
